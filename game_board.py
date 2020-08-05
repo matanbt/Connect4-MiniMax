@@ -7,8 +7,9 @@ import sys
 # CONSTANTS:
 BOARD_ROWS, BOARD_COLS = 6, 7
 SQUARE_SIZE = 80  # pixels of element in matrix
+
+
 WIDTH, HEIGHT = BOARD_COLS * SQUARE_SIZE, (BOARD_ROWS + 2) * SQUARE_SIZE
-LOGO = "logo.png"
 ICON = "icon.png"
 CAPTION = ""
 B_COLOR = (0, 153, 255)
@@ -258,7 +259,7 @@ def main():
     SCREEN = pygame.display.set_mode((WIDTH, HEIGHT)) #(51,153,255)
     draw_text(SCREEN,"Connect-4",size=int(0.6*SQUARE_SIZE),coor=(int(WIDTH*0.3),int(HEIGHT*0.05)),color=(0,220,255),border=True,border_color=(200,0,0))
     pygame.display.set_caption("Matan's Connect-4")
-    gameIcon = pygame.image.load('logo.png')
+    gameIcon = pygame.image.load(ICON)
     pygame.display.set_icon(gameIcon)
     draw_status(SCREEN, player, cou)
     init_board(SCREEN)
