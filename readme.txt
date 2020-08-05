@@ -1,0 +1,23 @@
+4-In-A-Row\ Connect-4 game implemented with MiniMax Algorithm for AI Opponent with graphic UI
+Using numpy and pygame
+
+# MiniMax Scoring System:
+based on the following assumption:
+a player, in is turn, would aspire to: Win (sequence of 4), place in the center column, sequence of 3 and then of 2 - in that order.
+Each goal will have a corresponding score:
+- WIN - 10000 Ps
+- Center Piece - 3 Ps Each
+- 3 Seq - 5 Ps Each
+- 2 Seq - 2 Ps Each
+- Scoring the Opponent will be the same with negative values
+*Sequences are looked at by windows of 4: i.g. counted with gaps ,i.e. *00* / **00 --> 2 seq
+
+
+
+--------- TASKS: ---------
+#classic settled grey board and black and red pieces
+#challenges to come:
+#MEMOIZATION ?
+#Add StopWatch - Time elasped in game
+#animation
+#Main menu?
