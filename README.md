@@ -1,2 +1,2 @@
-# Connect4-AI
+# Connect4 AI
 Implemented with Python using Numpy and PyGame 
