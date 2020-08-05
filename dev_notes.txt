@@ -1,6 +1,3 @@
-4-In-A-Row\ Connect-4 game implemented with MiniMax Algorithm for AI Opponent with graphic UI
-Using numpy and pygame
-
 # MiniMax Scoring System:
 based on the following assumption:
 a player, in is turn, would aspire to: Win (sequence of 4), place in the center column, sequence of 3 and then of 2 - in that order.
