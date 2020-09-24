@@ -9,7 +9,7 @@ from GUI_API import GUIApp
 BOARD_ROWS, BOARD_COLS = 6, 7
 SQUARE_SIZE = 80  # pixels of element in matrix
 SQUARE_SIZE_DICT = {
-    'XL': 90, 'LG': 80, 'MD': 70, 'SM': 60
+    'XXL':120,'XL': 100, 'LG': 80, 'MD': 70, 'SM': 60
 }
 DEPTH_OF_AI = 5
 DEPTH_OF_AI_DICT = {
