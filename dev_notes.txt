@@ -12,9 +12,9 @@ Each goal will have a corresponding score:
 
 
 --------- TASKS: ---------
-#classic settled grey board and black and red pieces
-#challenges to come:
-#MEMOIZATION ?
-#Add StopWatch - Time elasped in game
-#animation
-#Main menu?
+# classic settled grey board and black and red pieces
+# challenges to come:
+# optimize minimax algorithm by MEMOIZATION ?
+# Add StopWatch - Time elasped in game
+# animation
+# Main menu?

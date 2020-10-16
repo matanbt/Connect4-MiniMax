@@ -1,81 +1,22 @@
-import math
+from GUI_API.components import *
+from GUI_API.config import *
+
 from tkinter import *
-from tkinter import filedialog, messagebox
+from tkinter import messagebox, scrolledtext
 from tkinter.ttk import *
-import enum
-import os
+import datetime
+
 from ctypes import windll
 
+# fixes sharpness issue
 windll.shcore.SetProcessDpiAwareness(1)
 
-# CONSTANT:
-DEFAULT_WIDTH = 420
-SUBMIT_TEXT = 'Confirm'
-BROWSE_FILE = 'Browse...'
+
+class FormGUI(Tk):
+    """Builds form-like GUI with some output options, to drive an 'action_func' """
 
 
-class Field:
 
-    def __init__(self, keyword, field_type, field_label):
-        """
-        :param keyword: the keyword that represent the field (will be the kwarg in the action_function)
-        :param field_type: the type of the field, one of 'entry' or 'combobox' or 'checkbox' or 'file'
-        :param field_label: title of the field. for UI purposes.
-        """
-        self.keyword = keyword
-        self.type = field_type
-        self.label = field_label
-
-        self.view = None
-        self.variable = None
-        self.frames = None
-        self.values = None
-        self.var_state = None
-
-    def setParams(self, view, variable, frames, values=None, var_state=None):
-        """
-        :param view: the tkinter object of the field
-        :param variable: the dynamic variable (=object) that represents the value of the field
-        :param frames: the containers (=iterable of tkinter objects) of the field element
-        :param values: list of values that defines the field
-                        for 'combobox' - the list of options; for 'file' - the list of
-        :param var_state: dynamic variable represents the state of the field. for UI purposes.
-        """
-
-        self.view = view
-        self.variable = variable
-
-        self.frames = (frame for frame in frames if frame)
-
-        if values:
-            self.values = values
-        if var_state:
-            self.var_state = var_state
-
-    def calcHeight(self):
-        return sum(cont["height"] for cont in self.frames)
-
-    def get(self):
-        if self.type == 'file':
-            return self.variable
-        if self.type =='combobox':
-            return self.values.get(self.variable.get()) #translate chosen key by given map
-
-        return self.variable.get()
-
-    def openFileDialog(self):
-        if self.type != 'file':
-            raise Exception("Can't call 'openFileDialog' on non-file type")
-        self.variable = filedialog.askopenfilename(title=self.label, filetypes=self.values)  # initialdir = '/'
-        filename = os.path.basename(self.value) if os.path.basename(self.value) else BROWSE_FILE
-        self.var_state.set(filename)
-
-    def destroy(self):
-        for frame in self.frames:
-            frame.destroy()
-
-
-class GUIApp(Tk):
     def __init__(self, action_func, output_type=None, title='App', resizable=False, width=DEFAULT_WIDTH):
         """
         :param action_func: the function to be called on submit,
@@ -91,41 +32,42 @@ class GUIApp(Tk):
         :param width: window's definition
         """
         # Error checks:
-        if output_type not in (None, 'messagebox', 'inwindow'):
+        if output_type not in output_types:
             raise Exception("argument value of 'output_type' is  invalid")
 
-        super().__init__()  # calls
+        super().__init__()
         super().title(title)
         super().resizable(resizable, resizable)
         self.width = width
+        self.additional_height = 0
         self.height = 0  # to be calculated
-        self.accu_height = 0  # additional accumulative height for the later calculation
 
-        self.fields_dict = {}
+        self.items_dict = {}  # contains all the items packed in the app, with keyword '$non_field'
         self.action_func = action_func
         self.output_type = output_type
 
-        if output_type is None or output_type == 'messagebox':
-            self.body_height_ratio = 0.9
-            self.body = Frame(self)
-            self.body.place(relx=0.05, rely=0.05, relwidth=0.9, relheight=self.body_height_ratio)
-        elif output_type == 'inwindow':
-            # with footer for output
-            self.body_height_ratio = 0.7
-            self.body = Frame(self)
-            self.body.place(relx=0.05, rely=0.05, relwidth=0.9, relheight=self.body_height_ratio)
-            self.footer = Frame(self)
-            self.footer.place(relx=0.05, rely=0.77, relwidth=0.9, relheight=0.2)
-            self.output_label = Label(self.footer, text="  ", padding=10,
+        self.body_height_ratio = 0.9
+        self.body = Frame(self)
+        self.body.place(relx=0.05, rely=0.05, relwidth=0.9, relheight=self.body_height_ratio)
+
+        if output_type == 'inwindow':
+            self.output_label = Label(self.body, text="  ", padding=10,
                                       anchor='center', background='#d2d4d2')
-            self.output_label.pack(fill='both')
+            self.output_label.pack(side='bottom', fill='both')
+            self.additional_height += 70
+
+        # submit button:
+        submit = Button(self.body, text=SUBMIT_TEXT, padding=5, command=self.submit_func)
+        submit.pack(side='bottom', pady=15)
+        self.additional_height += 40
 
     def setField(self, keyword, field_type, **field_data):
         """
         :param keyword: unique name of the field, used as the id of the field,
                         also the *keyword* to be delivered to the action-function after submit
         :param field_type: type of the field, one of 'entry' or 'combobox' or 'checkbox' or 'file'
-        :param field_data: data required (or optional) to create the field.
+        :param field_data: (kargs) data required (or optional) to create the field.
+                                            possible arguments:
                *for 'entry' or 'checkbox':  'label' (optional) - the name of the field (will be the keyword by default),
                                             'desc' (optional) - a description attached to the field.
                                             'default' (optional) - default value for the field
@@ -138,20 +80,18 @@ class GUIApp(Tk):
 
          *the fields are packed in the order of insertion
          *note the return value types of the fields:
-            entry -> str, checkbox -> str, combobox -> value mapped in 'values' argument, file -> str (path)
+            entry -> str; checkbox -> str; combobox -> return the mapped value from 'values'; file -> str (path)
         """
-        #valitidy checks and conversions
+        # validity checks and conversions
         if not field_data.get('label'):
             field_data['label'] = keyword.title()
         if field_type == 'combobox' and type(field_data.get('values')) == list:
-            field_data['values']={key:key for key in field_data['values']}
+            field_data['values'] = {key: key for key in field_data['values']}
         if field_type == 'combobox' and field_data.get('values') and field_data.get('default'):
             if field_data['default'] not in field_data['values']:
                 raise Exception(f"invalid 'default' argument @setField:{keyword}")
-        if keyword in self.fields_dict:
+        if keyword in self.items_dict:
             raise Exception(f"Keyword '{keyword}' is already used by another field in the app")
-
-
 
         # initiate the Object that will represent the field
         field_obj = Field(keyword, field_type, field_data['label'])
@@ -201,25 +141,41 @@ class GUIApp(Tk):
         # updates the field object:
         field_obj.setParams(view=input_field, variable=var_field, frames=[field, field_desc, margin_bottom],
                             values=field_data.get('values'), var_state=var_state)
-        self.fields_dict[keyword] = field_obj
+        self.items_dict[keyword] = field_obj
 
-    def setInnerTitle(self, text):
-        """sets title (packed in the order of insertion)"""
-        field = Frame(self.body, height=26)
-        field.pack(padx=5, pady=0, fill='both')
-        label = Label(field, text=text, anchor='center', font=('Helvetica', 10, 'bold'))
-        label.place(relwidth=1, relheight=1, relx=0, rely=0)
+    def setItem(self, item_type, text):
+        """
+        sets title (packed in the order of insertion)
+        :param item_type: one of 'title'
+        :param text:
+        :return:
+        """
 
-        # margin-bottom (cosmetics)
-        margin_bottom = Frame(self.body, height=20)
-        margin_bottom.pack(fill='both')
+        # initiate the Object that will represent the field
+        item_obj = Item(item_type)
 
-        self.accu_height += 26 + 20
+        if item_type == 'title':
+            field = Frame(self.body, height=26)
+            field.pack(padx=5, pady=0, fill='both')
+            label = Label(field, text=text, anchor='center', font=('Helvetica', 10, 'bold'))
+            label.place(relwidth=1, relheight=1, relx=0, rely=0)
+
+            # margin-bottom (cosmetics)
+            margin_bottom = Frame(self.body, height=20)
+            margin_bottom.pack(fill='both')
+
+            # updates the field object:
+            item_obj.setFrames([field, margin_bottom])
+            self.items_dict[item_obj.keyword] = item_obj
+
+    def getFields(self):
+        """return a list with keyword,field-object pairs (with the fields only)"""
+        return [pair for pair in self.items_dict.items() if pair[0][0] != '$']
 
     def submit_func(self):
         """triggered on submit click, wraps 'action_func'"""
         kargs = {}
-        for key, field_obj in self.fields_dict.items():
+        for key, field_obj in self.getFields():
             kargs[key] = field_obj.get()
         if self.output_type is None:
             self.destroy()
@@ -233,21 +189,79 @@ class GUIApp(Tk):
 
     def run(self):
         """calls the (tkinter's) main loop and opens the window"""
-        submit = Button(self.body, text=SUBMIT_TEXT, padding=5, command=self.submit_func)
-        submit.pack(side='bottom')
 
-        self.height = 40 + self.accu_height  # submit button
-        self.height += sum(f.calcHeight() for f in self.fields_dict.values())
+        self.height = sum(f.calcHeight() for f in self.items_dict.values()) + self.additional_height
         self.height = round(self.height / self.body_height_ratio)
         self.geometry(f'{self.width}x{self.height}')
 
         self.mainloop()
 
-    def deleteField(self, keyword):
-        """deletes given field from the context (entirely)"""
-        if keyword not in self.fields_dict:
-            raise Exception('Keyword is not used as a field')
-        self.fields_dict.pop(keyword).destroy()
+    def deleteItem(self, obj):
+        """deletes given item instance (returned on setItem/setField function) from the context (entirely)"""
+        self.items_dict.pop(obj.keyword).destroy()
 
     def destroy(self):
         super().destroy()
+
+
+class RunningScriptGUI(Tk):
+    """
+     ---- FEATURE ON-DEVELOPMENT ----
+    GUI platform for a running script that prints messages (logs)
+    :param: userStoppedScript - a flag indicates whether Stop button was clicked by user or not.
+                                breaking the script is up to the developer
+    """
+
+
+    def __init__(self, script, title="App", resizable=True):
+        super().__init__()
+        super().title(title)
+        super().resizable(resizable, resizable)
+        super().geometry(f'{800}x{400}')
+        self.script=script
+        self.run_onopen=True#run_onopen
+
+        self.body_height_ratio = 0.70
+        self.margin_height_ratio = 0.10  # sum of margins
+        self.body = Frame(self)
+        self.body.place(relx=0.05, rely=0.05, relwidth=0.90, relheight=self.body_height_ratio)
+        self.txt = scrolledtext.ScrolledText(self.body, wrap='word', font=('consolas', '12'),state=DISABLED)
+        self.txt.pack(expand=True, fill='both')
+
+        self.footer = Frame(self)
+        self.footer.place(relx=0.05, rely=self.body_height_ratio+self.margin_height_ratio, relwidth=0.90,
+                          relheight=1 - self.body_height_ratio - self.margin_height_ratio*1.5)
+
+        self.run_button = Button(self.footer, text=RUN_TEXT, padding=5,command=self.runScript)
+        self.userStoppedScript=False
+        self.stop_button = Button(self.footer, text=STOP_TEXT, padding=5,command=self.setStopScript)
+        self.run_button.place(relx=0.8, rely=0.1, relheight=0.9, relwidth=0.2)
+        self.stop_button.place(relx=0.6, rely=0.1, relheight=0.9, relwidth=0.18)
+
+
+    def print(self, text):
+        """
+        display given message with the time it was sent
+        :param text: message to display in the screen
+        :return:
+        """
+        self.txt['state'] = NORMAL
+        self.txt.insert(END,(datetime.datetime.now()).strftime('%x-%X'))
+        self.txt.insert(END, '  ')
+        self.txt.insert(END, text)
+        self.txt.insert(END, '\n')
+        self.txt['state'] = DISABLED
+        self.txt.update_idletasks()  #enter main loop and keeps display updated while script's running
+        self.txt.see(END)
+
+
+    def setStopScript(self):
+        self.userStoppedScript=True
+
+    def runScript(self):
+        self.userStoppedScript=False
+        self.script(self)
+
+    def run(self):
+        """calls the (tkinter's) main loop and opens the window"""
+        self.mainloop()
