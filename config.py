@@ -1,7 +1,7 @@
 
 # CONSTANTS:
 BOARD_ROWS, BOARD_COLS = 6, 7
-ICON = "icon.png"
+ICON = "img/icon.png"
 CAPTION = "Matan's Connect-4"
 B_COLOR = (0, 153, 255)
 EMP_COLOR = (0, 0, 51)
