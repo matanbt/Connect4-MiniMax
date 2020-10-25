@@ -1,6 +1,6 @@
 # Connect4 AI
 ### Description:
-Play 4 In a Row against AI
+Play "4 In a Row" against AI
 - Implemented with Python using PyGame.
 - AI based on Minimax algorithm implementation.
 
